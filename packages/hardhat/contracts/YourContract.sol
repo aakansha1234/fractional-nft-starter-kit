@@ -2,33 +2,38 @@
 pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Fractional is ERC20, Ownable {
-  uint256 minBidAmount;
-  uint256 bidDeadline;
+contract YourContract is ERC20, Ownable {
+  uint256 public minBidAmount;
+  uint256 public bidDeadline;
 
-  IERC721 nft;
-  uint256 id;
+  IERC721 public nft;
+  uint256 public id;
 
   mapping(bytes32 => uint256) votes;
   mapping(bytes32 => mapping(address => bool)) isVoted;
-  constructor() ERC20("Frac", "FRAC") {}
-  receive() external payable {}
+  constructor() ERC20("Frac", "FRAC") {
+  }
 
-  function depositNFT(IERC721 _nft, uint256 _id, uint256 _minBidAmount, uint256 _bidDeadline) external onlyOwner {
-    _nft.transferFrom(msg.sender, address(this), _id);
+  receive() external payable {
+    require(nft.ownerOf(id) == address(this));
+    require(block.timestamp >= bidDeadline);
+  }
+
+  function depositNFT(address _nft, uint256 _id, uint256 _minBidAmount, uint256 _bidDeadline) external onlyOwner {
+    IERC721(_nft).transferFrom(msg.sender, address(this), _id);
     require(_minBidAmount > 0, "!minAmt");
     require(_bidDeadline > block.timestamp, "!deadline");
-    nft = _nft;
+    require(bidDeadline == 0, "already deposited");
+    nft = IERC721(_nft);
     id = _id;
     minBidAmount = _minBidAmount;
     bidDeadline = _bidDeadline;
   }
 
   function bid() external payable {
-    require(msg.value >= minBidAmount, "!value");
     require(block.timestamp < bidDeadline, "over");
 
     _mint(msg.sender, msg.value);
@@ -39,31 +44,40 @@ contract Fractional is ERC20, Ownable {
     require(block.timestamp < bidDeadline, "over");
 
     _burn(msg.sender, amount);
-    payable(msg.sender).call{value: amount}("");
+    (bool success, ) = payable(msg.sender).call{value: amount}("");
+    require(success, "fail");
   }
 
-  function withdrawNFT() onlyOwner {
+  function withdrawNFT() external onlyOwner {
     require(block.timestamp > bidDeadline, "!over");
-    require(address(this).balance < _minBidAmount, "sold");
+    require(address(this).balance < minBidAmount, "sold");
 
     nft.safeTransferFrom(address(this), msg.sender, id);
   }
 
+  function withdrawBidETH() external onlyOwner {
+    require(block.timestamp > bidDeadline, "!over");
+    require(address(this).balance >= minBidAmount, "!sold");
+
+    (bool success, ) = payable(msg.sender).call{value: address(this).balance}("");
+    require(success, "fail");
+  }
+
   function proposeCall(address to, bytes calldata callData, uint256 deadline) external {
-    require(balanceOf(msg.sender) > 0, "0 votes");
+    require(balanceOf(msg.sender) > 0, "0 vote power");
     require(block.timestamp < deadline, "over");
 
-    bytes32 memory hash = keccak256(abi.encodePacked(to, callData, deadline));
+    bytes32 hash = keccak256(abi.encodePacked(to, callData, deadline));
     require(votes[hash] == 0, "!proposal");
     votes[hash] = balanceOf(msg.sender);
     isVoted[hash][msg.sender] = true;
   }
 
-  function vote(address to, bytes calldata callData, deadline) external {
+  function vote(address to, bytes calldata callData, uint256 deadline) external {
     require(balanceOf(msg.sender) > 0, "0 votes");
     require(block.timestamp < deadline, "over");
 
-    bytes32 memory hash = keccak256(abi.encodePacked(to, callData, deadline));
+    bytes32 hash = keccak256(abi.encodePacked(to, callData, deadline));
     require(votes[hash] > 0, "!proposal");
     require(!isVoted[hash][msg.sender], "voted");
 
@@ -71,10 +85,15 @@ contract Fractional is ERC20, Ownable {
     isVoted[hash][msg.sender] = true;
   }
 
-  function executeCall(address to, bytes calldata callData, uint256 deadline) external payable {
+  function getVoteInfo(address to, bytes calldata callData, uint256 deadline) external view returns (uint256 numvotes, uint256 minVotes) {
+    bytes32 hash = keccak256(abi.encodePacked(to, callData, deadline));
+    return (votes[hash], totalSupply()/2);
+  }
+
+  function executeCall(address to, bytes calldata callData, uint256 deadline) external {
     require(block.timestamp > deadline, "!over");
 
-    bytes32 memory hash = keccak256(abi.encodePacked(to, callData, deadline));
+    bytes32 hash = keccak256(abi.encodePacked(to, callData, deadline));
     require(votes[hash] > totalSupply()/2, "!majority");
 
     (bool success, ) = to.call(callData);
@@ -89,6 +108,7 @@ contract Fractional is ERC20, Ownable {
 
     uint256 claimValue = address(this).balance / bal; // precision loss
 
-    payable(msg.sender).call{value: claimValue}("");
+    (bool success, ) = payable(msg.sender).call{value: claimValue}("");
+    require(success, "fail");
   }
 }
