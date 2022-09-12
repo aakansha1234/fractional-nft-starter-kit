@@ -1,5 +1,7 @@
 # 🏗 Fractionalized NFT prototype
 
+This prototype demonstrates how an NFT can be collectively owned and governed by a community.
+
 - NFT owner deploys `YourContract` and deposits their NFT into the contract which starts a bid period.
 - People bid with their ETH, and the contract mints equivalents $FRAC tokens to the bidder.
 - After a deadline, if enough ETH is collected, original NFT owner can withdraw the ETH. This completes the bidding.
@@ -24,7 +26,7 @@ git clone https://github.com/aakansha1234/fractional-nft-starter-kit.git
 > install and start your 👷‍ Hardhat chain:
 
 ```bash
-cd scaffold-eth
+cd fractional-nft-starter-kit
 yarn install
 yarn chain
 ```
@@ -32,14 +34,14 @@ yarn chain
 > in a second terminal window, start your 📱 frontend:
 
 ```bash
-cd scaffold-eth
+cd fractional-nft-starter-kit
 yarn start
 ```
 
 > in a third terminal window, 🛰 deploy your contract:
 
 ```bash
-cd scaffold-eth
+cd fractional-nft-starter-kit
 yarn deploy
 ```
 
@@ -51,9 +53,19 @@ yarn deploy
 
 📱 Open http://localhost:3000 to see the app
 
-# 📚 Documentation
+# 🚶‍♂️ Demo walkthrough
 
-Thi
+- Prepare 3 separate browser windows for localhost. Make sure all of them have different user addresses.
+- The first window will be the NFT seller. Mint, approve and transfer your NFT to the `YourContract` contract from the Bidder UI.
+- Then from other 2 windows, bid on this NFT so that the total bid amount is greater than the minimum ask.
+- After the deadline, from the owner window, claim the eth accumulated through bid.
+
+Now we'll simulate the action of selling this fractionalized NFT from this contract. You can now move to the VoteUI.
+- Transfer some eth (0.1 to 0.5) to `YourContract`.
+- Now from other two windows: propose, vote and execute a call to transfer this NFT to another address. You can use `cast` to create the calldata (`cast calldata ...`).
+- After execute, you should check if the NFT is no longer owned by `YourContract`.
+- If so, claim the eth present in `YourContract` and verify that your FRAC balance drops to 0.
+
 
 # 💌 P.S.
 

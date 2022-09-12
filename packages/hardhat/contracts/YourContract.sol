@@ -22,6 +22,8 @@ contract YourContract is ERC20, Ownable {
     require(block.timestamp >= bidDeadline);
   }
 
+  // this kicks off the entire process.
+  // NFT sellers calls this to transfer their NFT and sets Bid parameters.
   function depositNFT(address _nft, uint256 _id, uint256 _minBidAmount, uint256 _bidDeadline) external onlyOwner {
     IERC721(_nft).transferFrom(msg.sender, address(this), _id);
     require(_minBidAmount > 0, "!minAmt");
@@ -33,12 +35,14 @@ contract YourContract is ERC20, Ownable {
     bidDeadline = _bidDeadline;
   }
 
+  // once NFT has been deposited, bidders bid with their ETH
   function bid() external payable {
     require(block.timestamp < bidDeadline, "over");
 
     _mint(msg.sender, msg.value);
   }
 
+  // Take back bid amount if the bid is still active
   function unbid(uint256 amount) external {
     require(balanceOf(msg.sender) >= amount, "too high");
     require(block.timestamp < bidDeadline, "over");
@@ -48,6 +52,7 @@ contract YourContract is ERC20, Ownable {
     require(success, "fail");
   }
 
+  // If the total eth raised during the bid is lower than `minBidAmount`, owner can withdraw the NFT.
   function withdrawNFT() external onlyOwner {
     require(block.timestamp > bidDeadline, "!over");
     require(address(this).balance < minBidAmount, "sold");
@@ -55,6 +60,7 @@ contract YourContract is ERC20, Ownable {
     nft.safeTransferFrom(address(this), msg.sender, id);
   }
 
+  // If the total eth raised during the bid is higher than `minBidAmount`, owner can withdraw the ETH.
   function withdrawBidETH() external onlyOwner {
     require(block.timestamp > bidDeadline, "!over");
     require(address(this).balance >= minBidAmount, "!sold");
@@ -63,6 +69,9 @@ contract YourContract is ERC20, Ownable {
     require(success, "fail");
   }
 
+  // If the bid is successful, FRAC holders have full control over this contract.
+  // they can propose any external call from this contract.
+  // Holders will vote and if it reaches the majority, it can be executed.
   function proposeCall(address to, bytes calldata callData, uint256 deadline) external {
     require(balanceOf(msg.sender) > 0, "0 vote power");
     require(block.timestamp < deadline, "over");
@@ -73,6 +82,7 @@ contract YourContract is ERC20, Ownable {
     isVoted[hash][msg.sender] = true;
   }
 
+  // vote on an open proposal (before the deadline)
   function vote(address to, bytes calldata callData, uint256 deadline) external {
     require(balanceOf(msg.sender) > 0, "0 votes");
     require(block.timestamp < deadline, "over");
@@ -90,6 +100,8 @@ contract YourContract is ERC20, Ownable {
     return (votes[hash], totalSupply()/2);
   }
 
+  // If at least 50% of the tokens have voted, execute the call.
+  // this has the potential to transfer the NFT as well, so can be used to integrate with marketplaces or P2P deal.
   function executeCall(address to, bytes calldata callData, uint256 deadline) external {
     require(block.timestamp > deadline, "!over");
 
@@ -100,6 +112,8 @@ contract YourContract is ERC20, Ownable {
     require(success, "fail");
   }
 
+  // If this contract no longer owns the NFT (either it is sold or transferred),
+  // FRAC holders can burn their tokens and claim any ETH held by this contract in proportion.
   function reclaimEther() external {
     uint256 bal = balanceOf(msg.sender);
     require(bal > 0, "!holder");
