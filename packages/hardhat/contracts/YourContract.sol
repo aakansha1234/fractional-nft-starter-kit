@@ -65,6 +65,8 @@ contract YourContract is ERC20, Ownable {
     require(block.timestamp > bidDeadline, "!over");
     require(address(this).balance >= minBidAmount, "!sold");
 
+    renounceOwnership();
+
     (bool success, ) = payable(msg.sender).call{value: address(this).balance}("");
     require(success, "fail");
   }
