@@ -16,6 +16,7 @@ export default function BidderUI({
   const [tokenId, setTokenId] = useState("loading...");
   const [amount, setAmount] = useState("loading...");
   const [bidDuration, setBidDuration] = useState("loading...");
+  const [curTime, setcurTime] = useState();
 
   let nftAddress = readContracts && readContracts.YourNFT ? readContracts.YourNFT.address : "...";
   let bidAddress = readContracts && readContracts.YourContract ? readContracts.YourContract.address : "...";
@@ -42,7 +43,7 @@ export default function BidderUI({
             }}
           />
           <Input
-            placeholder="Bid duration from now in seconds"
+            placeholder="Bid deadline"
             onChange={e => {
               setBidDuration(e.target.value);
             }}
@@ -74,13 +75,8 @@ export default function BidderUI({
           <Button
             style={{ marginTop: 8 }}
             onClick={async () => {
-              /* look how you call setPurpose on your contract: */
-              /* notice how you pass a call back for tx updates too */
-              console.log("now", Date.now());
-              const deadline = (Math.floor(Date.now() / 1000) + parseInt(bidDuration)).toString();
-              console.log("deadline", deadline);
               const result = tx(
-                writeContracts.YourContract.depositNFT(nftAddress, tokenId, utils.parseEther(amount), deadline),
+                writeContracts.YourContract.depositNFT(nftAddress, tokenId, utils.parseEther(amount), bidDuration),
               );
               console.log("awaiting metamask/web3 confirm result...", result);
               console.log(await result);
@@ -88,6 +84,15 @@ export default function BidderUI({
           >
             Deposit NFT
           </Button>
+          <br />
+          <Button
+            onClick={() => {
+              setcurTime(Math.floor(Date.now() / 1000));
+            }}
+          >
+            Current unix epoch second:
+          </Button>
+          {curTime}
         </div>
         <Divider />
         NFT Address:
@@ -101,7 +106,7 @@ export default function BidderUI({
             /* look how we call setPurpose AND send some value along */
             tx(
               writeContracts.YourContract.bid({
-                value: utils.parseEther("0.5"),
+                value: utils.parseEther("0.05"),
               }),
             );
           }}
@@ -111,7 +116,7 @@ export default function BidderUI({
         <Button
           onClick={() => {
             /* look how we call setPurpose AND send some value along */
-            tx(writeContracts.YourContract.unbid(utils.parseEther("0.5")));
+            tx(writeContracts.YourContract.unbid(utils.parseEther("0.05")));
           }}
         >
           Unbid 0.05 ETH

@@ -14,6 +14,9 @@ contract YourContract is ERC20, Ownable {
 
   mapping(bytes32 => uint256) votes;
   mapping(bytes32 => mapping(address => bool)) isVoted;
+
+  uint256 totalMinted = 0;
+  uint256 totalEth = 0;
   constructor() ERC20("Frac", "FRAC") {
   }
 
@@ -120,9 +123,14 @@ contract YourContract is ERC20, Ownable {
     uint256 bal = balanceOf(msg.sender);
     require(bal > 0, "!holder");
     require(nft.ownerOf(id) != address(this), "still owner");
+    if (totalMinted == 0) {
+      totalMinted = totalSupply();
+      totalEth = address(this).balance;
+    }
+
     _burn(msg.sender, bal);
 
-    uint256 claimValue = address(this).balance / bal; // precision loss
+    uint256 claimValue = totalEth * bal / totalMinted;
 
     (bool success, ) = payable(msg.sender).call{value: claimValue}("");
     require(success, "fail");
