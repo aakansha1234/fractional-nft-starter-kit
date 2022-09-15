@@ -26,9 +26,9 @@ contract YourContract is ERC20, Ownable {
   // NFT sellers calls this to transfer their NFT and sets Bid parameters.
   function depositNFT(address _nft, uint256 _id, uint256 _minBidAmount, uint256 _bidDeadline) external onlyOwner {
     IERC721(_nft).transferFrom(msg.sender, address(this), _id);
-    require(_minBidAmount > 0, "!minAmt");
-    require(_bidDeadline > block.timestamp, "!deadline");
-    require(bidDeadline == 0, "already deposited");
+    require(_minBidAmount > 0, "set minBidAmount > 0");
+    require(_bidDeadline > block.timestamp, "set bidDeadline in future");
+    require(bidDeadline == 0, "NFT already deposited");
     nft = IERC721(_nft);
     id = _id;
     minBidAmount = _minBidAmount;
@@ -74,22 +74,22 @@ contract YourContract is ERC20, Ownable {
   // If the bid is successful, FRAC holders have full control over this contract.
   // they can propose any external call from this contract.
   // Holders will vote and if it reaches the majority, it can be executed.
-  function proposeCall(address to, bytes calldata callData, uint256 deadline) external {
+  function proposeCall(address to, bytes calldata data, uint256 deadline) external {
     require(balanceOf(msg.sender) > 0, "0 vote power");
     require(block.timestamp < deadline, "over");
 
-    bytes32 hash = keccak256(abi.encodePacked(to, callData, deadline));
+    bytes32 hash = keccak256(abi.encodePacked(to, data, deadline));
     require(votes[hash] == 0, "!proposal");
     votes[hash] = balanceOf(msg.sender);
     isVoted[hash][msg.sender] = true;
   }
 
   // vote on an open proposal (before the deadline)
-  function vote(address to, bytes calldata callData, uint256 deadline) external {
+  function vote(address to, bytes calldata data, uint256 deadline) external {
     require(balanceOf(msg.sender) > 0, "0 votes");
     require(block.timestamp < deadline, "over");
 
-    bytes32 hash = keccak256(abi.encodePacked(to, callData, deadline));
+    bytes32 hash = keccak256(abi.encodePacked(to, data, deadline));
     require(votes[hash] > 0, "!proposal");
     require(!isVoted[hash][msg.sender], "voted");
 
@@ -97,20 +97,20 @@ contract YourContract is ERC20, Ownable {
     isVoted[hash][msg.sender] = true;
   }
 
-  function getVoteInfo(address to, bytes calldata callData, uint256 deadline) external view returns (uint256 numvotes, uint256 minVotes) {
-    bytes32 hash = keccak256(abi.encodePacked(to, callData, deadline));
+  function getVoteInfo(address to, bytes calldata data, uint256 deadline) external view returns (uint256 numvotes, uint256 minVotes) {
+    bytes32 hash = keccak256(abi.encodePacked(to, data, deadline));
     return (votes[hash], totalSupply()/2);
   }
 
   // If at least 50% of the tokens have voted, execute the call.
   // this has the potential to transfer the NFT as well, so can be used to integrate with marketplaces or P2P deal.
-  function executeCall(address to, bytes calldata callData, uint256 deadline) external {
+  function executeCall(address to, bytes calldata data, uint256 deadline) external {
     require(block.timestamp > deadline, "!over");
 
-    bytes32 hash = keccak256(abi.encodePacked(to, callData, deadline));
+    bytes32 hash = keccak256(abi.encodePacked(to, data, deadline));
     require(votes[hash] > totalSupply()/2, "!majority");
 
-    (bool success, ) = to.call(callData);
+    (bool success, ) = to.call(data);
     require(success, "fail");
   }
 
